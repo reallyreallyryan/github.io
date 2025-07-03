@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dancing Data Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #0a0a1e, #1a1a3e);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .file-upload {
+            margin-bottom: 20px;
+        }
+        
+        .file-upload input[type="file"] {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed #4ecdc4;
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .mapping-controls {
+            display: none;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .mapping-group {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .mapping-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .mapping-group select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .mapping-group select option {
+            background: #2a5298;
+            color: white;
+        }
+        
+        .start-button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px 10px 0 0;
+            transition: transform 0.2s;
+        }
+        
+        .start-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .quick-button {
+            background: linear-gradient(45deg, #96ceb4, #ffeaa7);
+        }
+        
+        .canvas-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 500px;
+        }
+        
+        .sample-data {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .sample-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid #4ecdc4;
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .sample-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .info {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕺 Dancing Data 💃</h1>
+            <p>Upload your CSV and watch your data come alive as dancing light people!</p>
+        </div>
+        
+        <div class="controls">
+            <div class="sample-data">
+                <h3>Try a sample dataset:</h3>
+                <button class="sample-button" onclick="loadSampleData('sales')">Sales Data</button>
+                <button class="sample-button" onclick="loadSampleData('weather')">Weather Data</button>
+                <button class="sample-button" onclick="loadSampleData('stocks')">Stock Prices</button>
+            </div>
+            
+            <div class="file-upload">
+                <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+            </div>
+            
+            <div class="mapping-controls" id="mappingControls">
+                <div class="mapping-group">
+                    <label for="colorColumn">Color (Categories)</label>
+                    <select id="colorColumn"></select>
+                </div>
+                <div class="mapping-group">
+                    <label for="sizeColumn">Size (Numbers)</label>
+                    <select id="sizeColumn"></select>
+                </div>
+                <div class="mapping-group">
+                    <label for="speedColumn">Speed (Numbers)</label>
+                    <select id="speedColumn"></select>
+                </div>
+                <div class="mapping-group">
+                    <label for="xColumn">X Position</label>
+                    <select id="xColumn"></select>
+                </div>
+                <div class="mapping-group">
+                    <label for="yColumn">Y Position</label>
+                    <select id="yColumn"></select>
+                </div>
+                <button class="start-button" onclick="startDancing()">🎭 Start the Dance!</button>
+                <button class="start-button quick-button" onclick="quickGenerate()">⚡ Quick Generate</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="danceCanvas" width="1200" height="500"></canvas>
+        </div>
+        
+        <div class="info">
+            <p>Each row becomes a dancing light person with dynamic arms and legs that move to your data! 🕺💃</p>
+        </div>
+    </div>
+
+    <script>
+        let csvData = [];
+        let dancers = [];
+        let animationId;
+        let canvas, ctx;
+        let currentMappings = {};
+        
+        // Sample datasets
+        const sampleDatasets = {
+            sales: `Name,Sales,Quarter,Region,Growth
+Alice,45000,Q1,North,12.5
+Bob,38000,Q2,South,8.2
+Carol,52000,Q1,East,15.7
+David,41000,Q3,West,6.9
+Eve,47000,Q2,North,11.3
+Frank,39000,Q4,South,7.8
+Grace,55000,Q1,East,18.2
+Henry,43000,Q3,West,9.1`,
+            
+            weather: `City,Temperature,Humidity,Rainfall,WindSpeed
+NYC,72,65,2.3,12
+LA,78,45,0.1,8
+Chicago,68,70,1.8,15
+Miami,82,80,3.2,10
+Denver,75,40,0.5,18
+Seattle,66,85,4.1,7
+Boston,70,60,1.2,14
+Phoenix,88,25,0.0,6`,
+            
+            stocks: `Company,Price,Volume,Change,Sector
+Apple,150,1200000,2.5,Tech
+Google,280,800000,1.8,Tech
+Amazon,320,950000,3.2,Retail
+Tesla,245,1500000,-1.5,Auto
+Microsoft,305,700000,1.2,Tech
+Netflix,420,600000,-0.8,Media
+Meta,275,900000,2.1,Tech
+Nvidia,890,2000000,4.7,Tech`
+        };
+        
+        function loadSampleData(type) {
+            const csvText = sampleDatasets[type];
+            parseCsvData(csvText);
+        }
+        
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseCsvData(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+        
+        function parseCsvData(csvText) {
+            Papa.parse(csvText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    csvData = results.data;
+                    setupMappingControls(results.meta.fields);
+                    document.getElementById('mappingControls').style.display = 'grid';
+                }
+            });
+        }
+        
+        function setupMappingControls(columns) {
+            const selects = ['colorColumn', 'sizeColumn', 'speedColumn', 'xColumn', 'yColumn'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">-- Select Column --</option>';
+                
+                columns.forEach(column => {
+                    const option = document.createElement('option');
+                    option.value = column;
+                    option.textContent = column;
+                    select.appendChild(option);
+                });
+            });
+            
+            // Set some defaults if available
+            if (columns.length > 0) {
+                document.getElementById('colorColumn').value = columns[0];
+                if (columns.length > 1) document.getElementById('sizeColumn').value = columns[1];
+                if (columns.length > 2) document.getElementById('speedColumn').value = columns[2];
+            }
+        }
+        
+        function quickGenerate() {
+            if (!csvData.length) {
+                alert('Please upload a CSV file first!');
+                return;
+            }
+            
+            const columns = Object.keys(csvData[0]);
+            
+            // Auto-detect column types and assign mappings
+            const numberColumns = columns.filter(col => 
+                csvData.some(row => typeof row[col] === 'number')
+            );
+            const stringColumns = columns.filter(col => 
+                csvData.some(row => typeof row[col] === 'string')
+            );
+            
+            // Smart defaults based on data type
+            if (stringColumns.length > 0) {
+                document.getElementById('colorColumn').value = stringColumns[0];
+            }
+            if (numberColumns.length > 0) {
+                document.getElementById('sizeColumn').value = numberColumns[0];
+            }
+            if (numberColumns.length > 1) {
+                document.getElementById('speedColumn').value = numberColumns[1];
+            }
+            if (numberColumns.length > 2) {
+                document.getElementById('xColumn').value = numberColumns[2];
+            }
+            if (numberColumns.length > 3) {
+                document.getElementById('yColumn').value = numberColumns[3];
+            }
+            
+            // Auto-start the dance
+            startDancing();
+        }
+        
+        function startDancing() {
+            if (!csvData.length) return;
+            
+            // Get mappings
+            currentMappings = {
+                color: document.getElementById('colorColumn').value,
+                size: document.getElementById('sizeColumn').value,
+                speed: document.getElementById('speedColumn').value,
+                x: document.getElementById('xColumn').value,
+                y: document.getElementById('yColumn').value
+            };
+            
+            setupCanvas();
+            createDancers();
+            animate();
+        }
+        
+        function setupCanvas() {
+            canvas = document.getElementById('danceCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 500;
+        }
+        
+        function createDancers() {
+            dancers = [];
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8', '#fd79a8'];
+            
+            csvData.forEach((row, index) => {
+                const dancer = {
+                    id: index,
+                    x: currentMappings.x ? normalizeValue(row[currentMappings.x], currentMappings.x) * canvas.width : Math.random() * canvas.width,
+                    y: currentMappings.y ? normalizeValue(row[currentMappings.y], currentMappings.y) * canvas.height : Math.random() * canvas.height,
+                    baseX: 0,
+                    baseY: 0,
+                    angle: Math.random() * Math.PI * 2,
+                    color: currentMappings.color ? getColorForValue(row[currentMappings.color], colors) : colors[index % colors.length],
+                    size: currentMappings.size ? Math.max(8, normalizeValue(row[currentMappings.size], currentMappings.size) * 25 + 10) : 15,
+                    speed: currentMappings.speed ? normalizeValue(row[currentMappings.speed], currentMappings.speed) * 0.08 + 0.02 : 0.05,
+                    data: row
+                };
+                
+                dancer.baseX = dancer.x;
+                dancer.baseY = dancer.y;
+                dancers.push(dancer);
+            });
+        }
+        
+        function normalizeValue(value, column) {
+            if (typeof value !== 'number') return Math.random();
+            
+            const values = csvData.map(row => row[column]).filter(v => typeof v === 'number');
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            
+            return max === min ? 0.5 : (value - min) / (max - min);
+        }
+        
+        function getColorForValue(value, colors) {
+            if (typeof value === 'string') {
+                // Hash the string to get consistent color
+                let hash = 0;
+                for (let i = 0; i < value.length; i++) {
+                    hash = ((hash << 5) - hash + value.charCodeAt(i)) & 0xffffffff;
+                }
+                return colors[Math.abs(hash) % colors.length];
+            }
+            return colors[0];
+        }
+        
+        function drawDancingPerson(dancer) {
+            const { x, y, size, color, angle } = dancer;
+            const scale = size / 15;
+            
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Body proportions
+            const headRadius = 6 * scale;
+            const bodyHeight = 20 * scale;
+            const armLength = 12 * scale;
+            const legLength = 16 * scale;
+            
+            // Dynamic movements based on dance rhythm
+            const danceIntensity = dancer.speed * 15;
+            const time = angle;
+            
+            // Arm movements
+            const leftArmAngle = Math.sin(time * 2.5) * (0.6 + danceIntensity * 0.5);
+            const rightArmAngle = Math.sin(time * 2.5 + Math.PI * 0.7) * (0.6 + danceIntensity * 0.5);
+            
+            // Leg movements
+            const leftLegAngle = Math.sin(time * 3) * (0.4 + danceIntensity * 0.3);
+            const rightLegAngle = Math.sin(time * 3 + Math.PI) * (0.4 + danceIntensity * 0.3);
+            
+            // Head bob
+            const headBob = Math.sin(time * 4) * 2 * scale;
+            
+            // Body sway
+            const bodySway = Math.sin(time * 1.8) * 0.1;
+            ctx.rotate(bodySway);
+            
+            // Set up glow effect
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 12;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2.5 * scale;
+            ctx.lineCap = 'round';
+            
+            // Head
+            ctx.beginPath();
+            ctx.arc(0, -bodyHeight/2 - headRadius + headBob, headRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Head sparkles
+            for (let i = 0; i < 3; i++) {
+                const sparkleAngle = time * 3 + (i * Math.PI * 2 / 3);
+                const sparkleRadius = headRadius + 4 * scale;
+                const sparkleX = Math.cos(sparkleAngle) * sparkleRadius;
+                const sparkleY = -bodyHeight/2 - headRadius + headBob + Math.sin(sparkleAngle) * sparkleRadius * 0.5;
+                
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, 1.5 * scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Body with pulse
+            const pulse = Math.sin(time * 5) * 0.2 + 1;
+            ctx.lineWidth = 3 * scale * pulse;
+            ctx.beginPath();
+            ctx.moveTo(0, -bodyHeight/2);
+            ctx.lineTo(0, bodyHeight/2);
+            ctx.stroke();
+            
+            // Arms
+            ctx.lineWidth = 2.5 * scale;
+            
+            // Left arm
+            const leftArmX = -armLength * Math.cos(leftArmAngle + 0.5);
+            const leftArmY = -bodyHeight/4 + armLength * Math.sin(leftArmAngle + 0.5);
+            ctx.beginPath();
+            ctx.moveTo(0, -bodyHeight/4);
+            ctx.lineTo(leftArmX, leftArmY);
+            ctx.stroke();
+            
+            // Right arm
+            const rightArmX = armLength * Math.cos(rightArmAngle - 0.5);
+            const rightArmY = -bodyHeight/4 + armLength * Math.sin(rightArmAngle - 0.5);
+            ctx.beginPath();
+            ctx.moveTo(0, -bodyHeight/4);
+            ctx.lineTo(rightArmX, rightArmY);
+            ctx.stroke();
+            
+            // Legs
+            // Left leg
+            const leftLegX = -legLength/2 + Math.sin(leftLegAngle) * legLength/2;
+            const leftLegY = bodyHeight/2 + legLength;
+            ctx.beginPath();
+            ctx.moveTo(0, bodyHeight/2);
+            ctx.lineTo(leftLegX, leftLegY);
+            ctx.stroke();
+            
+            // Right leg
+            const rightLegX = legLength/2 + Math.sin(rightLegAngle) * legLength/2;
+            const rightLegY = bodyHeight/2 + legLength;
+            ctx.beginPath();
+            ctx.moveTo(0, bodyHeight/2);
+            ctx.lineTo(rightLegX, rightLegY);
+            ctx.stroke();
+            
+            // Hand and foot sparkles
+            ctx.beginPath();
+            ctx.arc(leftArmX, leftArmY, 1.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(rightArmX, rightArmY, 1.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(leftLegX, leftLegY, 2 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(rightLegX, rightLegY, 2 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Energy particles
+            const particleCount = Math.floor(3 + dancer.speed * 40);
+            for (let i = 0; i < particleCount; i++) {
+                const particleAngle = time * 4 + (i * Math.PI * 2 / particleCount);
+                const particleRadius = (15 + Math.sin(time * 3 + i) * 8) * scale;
+                const particleX = Math.cos(particleAngle) * particleRadius;
+                const particleY = Math.sin(particleAngle) * particleRadius;
+                
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.arc(particleX, particleY, 1 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+            
+            ctx.restore();
+        }
+        
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Background
+            const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width/2);
+            gradient.addColorStop(0, 'rgba(10, 10, 30, 0.8)');
+            gradient.addColorStop(1, 'rgba(20, 20, 50, 0.9)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Floating particles in background
+            for (let i = 0; i < 15; i++) {
+                const x = (Date.now() * 0.001 + i * 80) % canvas.width;
+                const y = Math.sin(Date.now() * 0.002 + i) * 30 + canvas.height / 2;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            dancers.forEach(dancer => {
+                // Update position with dancing motion
+                dancer.angle += dancer.speed;
+                const danceRadius = dancer.size * 1.0;
+                dancer.x = dancer.baseX + Math.cos(dancer.angle) * danceRadius;
+                dancer.y = dancer.baseY + Math.sin(dancer.angle * 1.2) * danceRadius * 0.6;
+                
+                // Keep dancers in bounds
+                const margin = dancer.size * 1.5;
+                dancer.x = Math.max(margin, Math.min(canvas.width - margin, dancer.x));
+                dancer.y = Math.max(margin, Math.min(canvas.height - margin, dancer.y));
+                
+                // Draw dancing person
+                drawDancingPerson(dancer);
+            });
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Initialize canvas on load
+        window.onload = function() {
+            setupCanvas();
+            
+            // Draw welcome message
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Upload CSV → Watch your data become dancing light people! 🕺💃✨', canvas.width/2, canvas.height/2);
+        };
+        
+        // Handle window resize
+        window.onresize = function() {
+            if (canvas) {
+                const oldWidth = canvas.width;
+                canvas.width = canvas.offsetWidth;
+                if (dancers.length > 0) {
+                    // Rescale dancer positions
+                    dancers.forEach(dancer => {
+                        dancer.baseX = (dancer.baseX / oldWidth) * canvas.width;
+                        dancer.x = dancer.baseX;
+                    });
+                }
+            }
+        };
+    </script>
+</body>
+</html>
